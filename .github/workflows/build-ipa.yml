@@ -1,0 +1,51 @@
+
+name: Build MyIPTV IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Sprawdź Xcode
+        run: xcodebuild -version
+
+      - name: Zainstaluj XcodeGen
+        run: brew install xcodegen
+
+      - name: Wygeneruj projekt Xcode
+        run: xcodegen generate
+
+      - name: Zbuduj aplikację
+        run: |
+          xcodebuild \
+            -project MyIPTV.xcodeproj \
+            -scheme MyIPTV \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Utwórz IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/MyIPTV.app Payload/
+          zip -qry MyIPTV.ipa Payload
+          mkdir -p artifact
+          cp MyIPTV.ipa artifact/
+
+      - name: Udostępnij IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyIPTV-unsigned-ipa
+          path: artifact/MyIPTV.ipa
+          retention-days: 14
