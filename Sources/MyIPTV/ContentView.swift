@@ -1,3 +1,4 @@
+```swift
 import SwiftUI
 import AVKit
 import UniformTypeIdentifiers
@@ -5,215 +6,236 @@ import UniformTypeIdentifiers
 struct Channel: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
-    var group: String
     var url: String
+    var group: String = "Kanały"
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, url, group
+    }
 }
 
 struct ContentView: View {
     @AppStorage("playlistJSON") private var playlistJSON = "[]"
 
     @State private var channels: [Channel] = []
-    @State private var search = ""
-    @State private var current: Channel?
-    @State private var player: AVPlayer?
-    @State private var importing = false
+    @State private var searchText = ""
     @State private var message = "Zaimportuj swoją playlistę M3U"
+    @State private var showImporter = false
+    @State private var showPlayer = false
+    @State private var selectedChannel: Channel?
+    @State private var player: AVPlayer?
 
-    private var filtered: [Channel] {
-        if search.isEmpty { return channels }
+    private var filteredChannels: [Channel] {
+        guard !searchText.isEmpty else { return channels }
         return channels.filter {
-            $0.name.localizedCaseInsensitiveContains(search) ||
-            $0.group.localizedCaseInsensitiveContains(search)
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.group.localizedCaseInsensitiveContains(searchText)
         }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-            if let current = current, let player = player {
-                VideoPlayer(player: player)
-                    .frame(height: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
+            VStack(spacing: 0) {
+                header
 
-                Text(current.name)
-                    .font(.headline)
+                Button {
+                    showImporter = true
+                } label: {
+                    Label("IMPORTUJ PLAYLISTĘ M3U", systemImage: "plus.rectangle.on.folder")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Color.green.gradient)
+                        .clipShape(RoundedRectangle(cornerRadius: 15))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.gray)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 18)
-                    .padding(.top, 8)
-                    .lineLimit(2)
-            } else {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(Color.white.opacity(0.06))
-
-                    VStack(spacing: 10) {
-                        Image(systemName: "play.tv.fill")
-                            .font(.system(size: 42))
-                            .foregroundColor(.cyan)
-
-                        Text("Wybierz kanał")
-                            .font(.title3.bold())
-
-                        Text("Kliknij pozycję z listy poniżej")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .frame(height: 155)
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-            }
-
-            Button {
-                importing = true
-            } label: {
-                Label("Importuj playlistę M3U", systemImage: "folder.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(14)
-                    .background(Color.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-
-            Text(message)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18)
-                .padding(.top, 8)
-                .lineLimit(2)
-
-            if !channels.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-
-                    TextField("Szukaj kanału...", text: $search)
-                        .autocorrectionDisabled()
-                }
-                .padding(11)
-                .background(Color.white.opacity(0.07))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
+                    .padding(.bottom, 10)
 
                 HStack {
-                    Text("LISTA KANAŁÓW")
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.gray)
+
+                    TextField("Szukaj kanału...", text: $searchText)
+                        .foregroundStyle(.white)
+                        .autocorrectionDisabled()
+                }
+                .padding(13)
+                .background(Color.white.opacity(0.09))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+                HStack {
+                    Text("WSZYSTKIE KANAŁY")
                         .font(.caption.bold())
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.gray)
 
                     Spacer()
 
-                    Text("\(filtered.count)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("\(filteredChannels.count)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.green)
                 }
                 .padding(.horizontal, 18)
-                .padding(.top, 12)
-                .padding(.bottom, 5)
+                .padding(.bottom, 8)
 
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        ForEach(filtered) { channel in
-                            Button {
-                                play(channel)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName:
-                                        current?.id == channel.id
-                                        ? "waveform"
-                                        : "play.circle.fill"
-                                    )
-                                    .font(.title2)
-                                    .foregroundColor(.cyan)
+                if filteredChannels.isEmpty {
+                    Spacer(minLength: 20)
 
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(channel.name)
-                                            .font(.body)
-                                            .foregroundColor(.white)
-                                            .multilineTextAlignment(.leading)
+                    Image(systemName: "tv")
+                        .font(.system(size: 55))
+                        .foregroundStyle(.green)
 
-                                        if !channel.group.isEmpty {
+                    Text(channels.isEmpty ? "Brak kanałów" : "Brak wyników")
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.top, 12)
+
+                    Text(channels.isEmpty
+                         ? "Zaimportuj własną playlistę M3U."
+                         : "Spróbuj wpisać inną nazwę.")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
+
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 9) {
+                            ForEach(filteredChannels) { channel in
+                                Button {
+                                    play(channel)
+                                } label: {
+                                    HStack(spacing: 13) {
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.system(size: 35))
+                                            .foregroundStyle(.green)
+
+                                        VStack(alignment: .leading, spacing: 5) {
+                                            Text(channel.name)
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundStyle(.white)
+                                                .lineLimit(2)
+
                                             Text(channel.group)
                                                 .font(.caption)
-                                                .foregroundColor(.gray)
+                                                .foregroundStyle(.gray)
+                                                .lineLimit(1)
                                         }
+
+                                        Spacer(minLength: 4)
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.gray)
                                     }
-
-                                    Spacer(minLength: 8)
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+                                    .padding(14)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.white.opacity(0.07))
+                                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(13)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.white.opacity(0.05))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .contentShape(Rectangle())
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 24)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(red: 0.035, green: 0.045, blue: 0.07))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .preferredColorScheme(.dark)
         .fileImporter(
-            isPresented: $importing,
+            isPresented: $showImporter,
             allowedContentTypes: [.item],
             allowsMultipleSelection: false
         ) { result in
             importPlaylist(result)
         }
+        .fullScreenCover(isPresented: $showPlayer) {
+            if let player, let selectedChannel {
+                FullScreenPlayer(
+                    player: player,
+                    channelName: selectedChannel.name,
+                    onClose: {
+                        player.pause()
+                        showPlayer = false
+                    }
+                )
+            }
+        }
         .onAppear {
-            restorePlaylist()
+            loadSavedPlaylist()
         }
     }
 
     private var header: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.cyan.opacity(0.15))
-                    .frame(width: 48, height: 48)
+            Image(systemName: "tv.fill")
+                .font(.system(size: 29))
+                .foregroundStyle(.green)
 
-                Image(systemName: "play.tv.fill")
-                    .font(.system(size: 26))
-                    .foregroundColor(.cyan)
-            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("MY IPTV")
+                    .font(.system(size: 26, weight: .black))
+                    .foregroundStyle(.white)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("My IPTV")
-                    .font(.system(size: 28, weight: .bold))
-
-                Text("Twoja playlista. Twoje kanały.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Text("TWÓJ TELEWIZOR W KIESZENI")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.green)
             }
 
             Spacer()
+
+            Button {
+                loadSavedPlaylist()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                    .padding(11)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
+            }
         }
         .padding(.horizontal, 18)
-        .padding(.top, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+    }
+
+    private func loadSavedPlaylist() {
+        guard let data = playlistJSON.data(using: .utf8),
+              let saved = try? JSONDecoder().decode([Channel].self, from: data)
+        else {
+            channels = []
+            return
+        }
+
+        channels = saved
+        message = saved.isEmpty
+            ? "Zaimportuj swoją playlistę M3U"
+            : "Wczytano \(saved.count) kanałów"
     }
 
     private func importPlaylist(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
+        do {
+            guard let url = try result.get().first else { return }
 
             let access = url.startAccessingSecurityScopedResource()
             defer {
@@ -222,89 +244,59 @@ struct ContentView: View {
                 }
             }
 
-            do {
-                let data = try Data(contentsOf: url)
+            let content = try String(contentsOf: url, encoding: .utf8)
+            let parsed = parseM3U(content)
 
-                guard let text =
-                    String(data: data, encoding: .utf8) ??
-                    String(data: data, encoding: .isoLatin1)
-                else {
-                    message = "Nie udało się odczytać pliku."
-                    return
-                }
-
-                let parsed = parseM3U(text)
-
-                guard !parsed.isEmpty else {
-                    message = "Nie znaleziono kanałów. Sprawdź plik M3U."
-                    return
-                }
-
-                channels = parsed
-                savePlaylist()
-
-                player?.pause()
-                player = nil
-                current = nil
-
-                message = "Wczytano \(parsed.count) pozycji."
-
-            } catch {
-                message = "Błąd pliku: \(error.localizedDescription)"
+            guard !parsed.isEmpty else {
+                message = "Nie znaleziono kanałów. Sprawdź plik M3U."
+                return
             }
 
-        case .failure(let error):
-            message = "Import nieudany: \(error.localizedDescription)"
+            channels = parsed
+
+            if let data = try? JSONEncoder().encode(parsed),
+               let json = String(data: data, encoding: .utf8) {
+                playlistJSON = json
+            }
+
+            message = "Zaimportowano \(parsed.count) kanałów"
+        } catch {
+            message = "Błąd importu: \(error.localizedDescription)"
         }
     }
 
-    private func parseM3U(_ text: String) -> [Channel] {
-        let lines = text
-            .replacingOccurrences(of: "\u{FEFF}", with: "")
-            .components(separatedBy: .newlines)
-
+    private func parseM3U(_ content: String) -> [Channel] {
+        let lines = content.components(separatedBy: .newlines)
         var result: [Channel] = []
-        var info = ""
+        var nextName = ""
+        var nextGroup = "Kanały"
 
-        for raw in lines {
-            let line = raw.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
+        for rawLine in lines {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty else { continue }
 
-            if line.hasPrefix("#EXTINF:") {
-                info = line
-            } else if !line.isEmpty && !line.hasPrefix("#") {
-                var name = "Kanał \(result.count + 1)"
+            if line.hasPrefix("#EXTINF") {
+                nextName = line.components(separatedBy: ",").last?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? "Kanał"
 
-                if let comma = info.firstIndex(of: ",") {
-                    let extracted = String(
-                        info[info.index(after: comma)...]
-                    ).trimmingCharacters(in: .whitespaces)
-
-                    if !extracted.isEmpty {
-                        name = extracted
-                    }
+                if let range = line.range(of: "group-title=\"") {
+                    let rest = line[range.upperBound...]
+                    nextGroup = String(rest.prefix { $0 != "\"" })
+                } else {
+                    nextGroup = "Kanały"
                 }
-
-                var group = ""
-
-                if let range = info.range(
-                    of: #"group-title="([^"]*)""#,
-                    options: .regularExpression
-                ) {
-                    let attribute = String(info[range])
-                    group = String(
-                        attribute
-                            .dropFirst("group-title=\"".count)
-                            .dropLast()
-                    )
-                }
-
+            } else if !line.hasPrefix("#"),
+                      line.lowercased().hasPrefix("http") {
                 result.append(
-                    Channel(name: name, group: group, url: line)
+                    Channel(
+                        name: nextName.isEmpty ? "Kanał \(result.count + 1)" : nextName,
+                        url: line,
+                        group: nextGroup
+                    )
                 )
 
-                info = ""
+                nextName = ""
+                nextGroup = "Kanały"
             }
         }
 
@@ -313,40 +305,97 @@ struct ContentView: View {
 
     private func play(_ channel: Channel) {
         guard let url = URL(string: channel.url),
-              let scheme = url.scheme?.lowercased(),
-              scheme == "http" || scheme == "https"
+              ["http", "https"].contains(url.scheme?.lowercased() ?? "")
         else {
-            message = "Nieprawidłowy adres kanału."
+            message = "Nieprawidłowy adres kanału"
             return
         }
 
-        player?.pause()
-        current = channel
-        message = "Wybrano: \(channel.name)"
+        selectedChannel = channel
 
         let newPlayer = AVPlayer(url: url)
         player = newPlayer
+        message = "Uruchamianie: \(channel.name)"
+        showPlayer = true
+
         newPlayer.play()
     }
+}
 
-    private func savePlaylist() {
-        guard let data = try? JSONEncoder().encode(channels),
-              let json = String(data: data, encoding: .utf8)
-        else { return }
+struct FullScreenPlayer: View {
+    let player: AVPlayer
+    let channelName: String
+    let onClose: () -> Void
 
-        playlistJSON = json
-    }
+    @State private var isPlaying = true
 
-    private func restorePlaylist() {
-        guard let data = playlistJSON.data(using: .utf8),
-              let saved = try? JSONDecoder().decode(
-                [Channel].self,
-                from: data
-              ),
-              !saved.isEmpty
-        else { return }
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-        channels = saved
-        message = "Przywrócono \(saved.count) kanałów."
+            VideoPlayer(player: player)
+                .ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.headline.bold())
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.black.opacity(0.7))
+                            .clipShape(Circle())
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("MY IPTV")
+                            .font(.caption.bold())
+                            .foregroundStyle(.green)
+
+                        Text(channelName)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                Spacer()
+
+                HStack {
+                    Button {
+                        if isPlaying {
+                            player.pause()
+                        } else {
+                            player.play()
+                        }
+                        isPlaying.toggle()
+                    } label: {
+                        Label(
+                            isPlaying ? "Pauza" : "Odtwórz",
+                            systemImage: isPlaying ? "pause.fill" : "play.fill"
+                        )
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.7))
+                        .clipShape(Capsule())
+                    }
+
+                    Spacer()
+                }
+                .padding(18)
+            }
+        }
+        .statusBarHidden()
+        .preferredColorScheme(.dark)
+        .onDisappear {
+            player.pause()
+        }
     }
 }
+```
