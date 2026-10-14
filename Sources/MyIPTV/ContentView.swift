@@ -1,4 +1,3 @@
-```swift
 import SwiftUI
 import AVKit
 import UniformTypeIdentifiers
@@ -398,4 +397,3 @@ struct FullScreenPlayer: View {
         }
     }
 }
-```
