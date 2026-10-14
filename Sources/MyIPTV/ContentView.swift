@@ -31,39 +31,40 @@ struct ContentView: View {
         VStack(spacing: 0) {
             header
 
-            if let current, let player {
+            if let current = current, let player = player {
                 VideoPlayer(player: player)
                     .frame(height: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                     .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .padding(.top, 14)
 
                 Text(current.name)
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 18)
-                    .padding(.top, 10)
+                    .padding(.top, 8)
+                    .lineLimit(2)
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: 18)
                         .fill(Color.white.opacity(0.06))
 
                     VStack(spacing: 10) {
-                        Image(systemName: "tv.fill")
+                        Image(systemName: "play.tv.fill")
                             .font(.system(size: 42))
                             .foregroundColor(.cyan)
 
                         Text("Wybierz kanał")
                             .font(.title3.bold())
 
-                        Text("Twoja telewizja w jednym miejscu")
+                        Text("Kliknij pozycję z listy poniżej")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                .frame(height: 175)
+                .frame(height: 155)
                 .padding(.horizontal, 16)
-                .padding(.top, 16)
+                .padding(.top, 14)
             }
 
             Button {
@@ -72,37 +73,38 @@ struct ContentView: View {
                 Label("Importuj playlistę M3U", systemImage: "folder.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding(15)
+                    .padding(14)
                     .background(Color.blue)
-                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
-            .padding(.top, 16)
+            .padding(.top, 12)
 
             Text(message)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18)
-                .padding(.top, 10)
+                .padding(.top, 8)
+                .lineLimit(2)
 
             if !channels.isEmpty {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
 
                     TextField("Szukaj kanału...", text: $search)
                         .autocorrectionDisabled()
                 }
-                .padding(12)
+                .padding(11)
                 .background(Color.white.opacity(0.07))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.top, 10)
 
                 HStack {
-                    Text("KANAŁY")
+                    Text("LISTA KANAŁÓW")
                         .font(.caption.bold())
                         .foregroundColor(.secondary)
 
@@ -113,45 +115,56 @@ struct ContentView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal, 18)
-                .padding(.top, 15)
+                .padding(.top, 12)
                 .padding(.bottom, 5)
 
-                List(filtered) { channel in
-                    Button {
-                        play(channel)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName:
-                                current == channel
-                                ? "waveform"
-                                : "play.circle.fill"
-                            )
-                            .font(.title2)
-                            .foregroundColor(.cyan)
+                ScrollView {
+                    LazyVStack(spacing: 8) {
+                        ForEach(filtered) { channel in
+                            Button {
+                                play(channel)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName:
+                                        current?.id == channel.id
+                                        ? "waveform"
+                                        : "play.circle.fill"
+                                    )
+                                    .font(.title2)
+                                    .foregroundColor(.cyan)
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(channel.name)
-                                    .foregroundColor(.primary)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(channel.name)
+                                            .font(.body)
+                                            .foregroundColor(.white)
+                                            .multilineTextAlignment(.leading)
 
-                                if !channel.group.isEmpty {
-                                    Text(channel.group)
+                                        if !channel.group.isEmpty {
+                                            Text(channel.group)
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+
+                                    Spacer(minLength: 8)
+
+                                    Image(systemName: "chevron.right")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(.gray)
                                 }
+                                .padding(13)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white.opacity(0.05))
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .contentShape(Rectangle())
                             }
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            .buttonStyle(.plain)
                         }
-                        .padding(.vertical, 4)
                     }
-                    .listRowBackground(Color.white.opacity(0.035))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Spacer()
             }
@@ -175,16 +188,16 @@ struct ContentView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(Color.cyan.opacity(0.15))
-                    .frame(width: 52, height: 52)
+                    .frame(width: 48, height: 48)
 
                 Image(systemName: "play.tv.fill")
-                    .font(.system(size: 27))
+                    .font(.system(size: 26))
                     .foregroundColor(.cyan)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("My IPTV")
-                    .font(.system(size: 29, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
 
                 Text("Twoja playlista. Twoje kanały.")
                     .font(.caption)
@@ -194,7 +207,7 @@ struct ContentView: View {
             Spacer()
         }
         .padding(.horizontal, 18)
-        .padding(.top, 15)
+        .padding(.top, 12)
     }
 
     private func importPlaylist(_ result: Result<[URL], Error>) {
@@ -223,7 +236,7 @@ struct ContentView: View {
                 let parsed = parseM3U(text)
 
                 guard !parsed.isEmpty else {
-                    message = "Nie znaleziono kanałów w pliku."
+                    message = "Nie znaleziono kanałów. Sprawdź plik M3U."
                     return
                 }
 
@@ -237,11 +250,11 @@ struct ContentView: View {
                 message = "Wczytano \(parsed.count) pozycji."
 
             } catch {
-                message = "Błąd odczytu pliku."
+                message = "Błąd pliku: \(error.localizedDescription)"
             }
 
-        case .failure:
-            message = "Nie udało się zaimportować playlisty."
+        case .failure(let error):
+            message = "Import nieudany: \(error.localizedDescription)"
         }
     }
 
@@ -309,12 +322,11 @@ struct ContentView: View {
 
         player?.pause()
         current = channel
+        message = "Wybrano: \(channel.name)"
 
         let newPlayer = AVPlayer(url: url)
         player = newPlayer
         newPlayer.play()
-
-        message = "Odtwarzanie: \(channel.name)"
     }
 
     private func savePlaylist() {
