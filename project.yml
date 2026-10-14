@@ -1,0 +1,24 @@
+
+name: MyIPTV
+
+options:
+  bundleIdPrefix: pl.szczena
+  deploymentTarget:
+    iOS: "15.0"
+
+targets:
+  MyIPTV:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/MyIPTV
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: pl.szczena.myiptv
+        PRODUCT_NAME: MyIPTV
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MyIPTV
+        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
